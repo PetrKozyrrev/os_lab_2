@@ -6,14 +6,18 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
+#include "bigint.h"
 
 std::mutex mutex;
 
-double from_16_to_10(std::string &arr){
-    double res = 0;
+big_integer from_16_to_10(std::string &arr){
+    big_integer res = 0;
     for(int i=0;i<arr.size();++i){
         if(arr[i]>='0' and arr[i]<='9'){
-            res += (arr[i]-'0')*pow(16,arr.size()-i-1);
+            big_integer st = 16;
+            st = st.pow(arr.size()-i-1);
+            st*= ((int)(arr[i]-'0'));
+            res+=st;
         }
         else{
             int d;
@@ -25,22 +29,28 @@ double from_16_to_10(std::string &arr){
             case 'D': d = 13; break;
             case 'E': d = 14; break;
             case 'F': d = 15; break;
+            default: throw std::string("Input error");
             }
-            res += d*pow(16,arr.size()-i-1);
+            big_integer st = 16;
+            st = st.pow(arr.size()-i-1);
+            st*= d;
+            res+=st;
         }
     }
     return res;
 }
 
-double sm = 0;
-std::vector<double> array_numbers;
+big_integer sm = 0;
+std::vector<big_integer> array_numbers;
 
 void sum_array(int th_id,int step){
-    int index = th_id*step - 1;
-    for(int i=0;i<step;++i){
-        if(index+i<array_numbers.size())
-            sm+=array_numbers[index+i];
+    int index = th_id*step;
+    for(int i=index;i<index+step;++i){
+        if(i<array_numbers.size())
+            //std::cout << th_id << " " << i << std::endl;
+            sm+=array_numbers[i];
     }
+    pthread_exit(0);
 }
 
 int main(int argc,char* argv[]){
@@ -59,7 +69,7 @@ int main(int argc,char* argv[]){
     std::string line;
     std::vector<std::string> array_str;
     
-    std::string path = "../test/";
+    std::string path = "../../test/";
     std::string name;
     std::cout << "Input test file name: ";
     std::cin >>name;
@@ -67,17 +77,15 @@ int main(int argc,char* argv[]){
     path+=name;
     std::ifstream file(path);
 
-    if (file.is_open())
-    {
-        while (std::getline(file, line))
-        {
+    if (file.is_open()){
+        while (std::getline(file, line)){
             array_str.push_back(line);
         }
     }
     file.close();
 
     int arr_size = array_str.size();
-    int step = arr_size/threadCount + 1;
+    int step = (arr_size+(arr_size%threadCount))/threadCount + 1;
 
     if(arr_size == 0){
         std::cerr << "Empty file\n";
@@ -85,19 +93,25 @@ int main(int argc,char* argv[]){
     }
 
     for(auto elem: array_str){
-        array_numbers.push_back(from_16_to_10(elem));
+        try{
+            array_numbers.push_back(from_16_to_10(elem));
+        }
+        catch(std::string error_message){
+            std::cout << error_message << std::endl;
+            return 1;
+        }
     }
 
     for(int i{0};i<threadCount;++i){
         t[i] = std::thread(sum_array,i,step);
     }
+
     for(int i{0};i<threadCount;++i){
         t[i].join();
     }
 
-    std::cout.setf(std::ios::fixed);
-    std::cout.precision(0);
-    std::cout<<sm/(arr_size) <<std::endl;
+    big_integer averg = sm/arr_size;
+    std::cout<< averg <<std::endl;
 
     
 
