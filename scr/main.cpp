@@ -8,13 +8,20 @@
 #include <chrono>
 #include "bigint.h"
 
+// структура потока для передачи в функцию
 
 typedef struct someArgs_tag {
-    int id;
-    int start;
-    int finish;
+
+    int id;      // номер потока
+    
+    int start;   // начало диапазона который суммирует поток
+    
+    int finish;  // конец диапазона
+
 } someArgs_t;
 
+
+// Перевод из шестнадцатеричной в десятичную
 
 big_integer from_16_to_10(std::string &arr){
     big_integer res = 0;
@@ -46,12 +53,15 @@ big_integer from_16_to_10(std::string &arr){
     return res;
 }
 
-big_integer sm = 0;
-std::vector<big_integer> array_numbers;
-std::vector<std::string> array_str;
+big_integer sm = 0;  // итоговая сумма чисел из файла
+
+std::vector<std::string> array_str;  // массив для хранения чисел в строчном представлении
+
+// подсчет суммы
 
 void* sum_array(void* args){
     someArgs_t *arg = (someArgs_t*) args;
+
     for(int i = arg->start; i < arg->finish; ++i){
         if(i < array_str.size())
             sm += from_16_to_10(array_str[i]);
@@ -61,26 +71,22 @@ void* sum_array(void* args){
 
 int main(int argc,char* argv[]){
 
-    auto start_time = std::chrono::steady_clock::now();
-
     if(argc != 2){
         std::cerr << "Key error\n";
         return 1;
     }
 
-    const int threadCount = atoi(argv[1]); // количество потоков
+    // считывание чисел из файла
 
-    pthread_t t[threadCount];
-
-
-    std::string line;
-    
-    
+    std::string line;    
     std::string path = "../../test/";
     std::string name;
     std::cout << "Input test file name: ";
     std::cin >> name;
     std::cout << std::endl; 
+
+    auto start_time = std::chrono::steady_clock::now();
+
     path += name;
     std::ifstream file(path);
 
@@ -92,6 +98,12 @@ int main(int argc,char* argv[]){
 
     file.close();
 
+
+    const int threadCount = atoi(argv[1]);  // количество потоков
+
+    pthread_t t[threadCount];
+    someArgs_t args[threadCount];
+
     int arr_size = array_str.size();
     int step = ((arr_size) /threadCount) + 1;
 
@@ -99,8 +111,6 @@ int main(int argc,char* argv[]){
         std::cerr << "Empty file\n";
         return 1;
     }
-
-    someArgs_t args[threadCount];
 
     for(int i{0};i<threadCount;++i){
         args[i].id = i;
@@ -125,7 +135,6 @@ int main(int argc,char* argv[]){
     std::cout<< averg <<std::endl;
 
     
-
     auto end_time = std::chrono::steady_clock::now();
     auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
     std::cout << elapsed_ns.count() << " ns\n";
